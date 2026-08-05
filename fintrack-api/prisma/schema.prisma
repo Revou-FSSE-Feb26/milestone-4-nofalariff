@@ -4,8 +4,9 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -40,16 +41,21 @@ model Account {
 }
 
 enum AccountType {
-  Cash
-  Bank
-  EWallet
+  cash
+  bank
+  ewallet
 }
 
 model Category {
   id           Int           @id @default(autoincrement())
   name         String
-  type         String
+  type         CategoryType
   transactions Transaction[]
+}
+
+enum CategoryType {
+  income
+  expense
 }
 
 model Transaction {
@@ -66,7 +72,7 @@ model Transaction {
 }
 
 enum TransactionType {
-  Income
-  Expense
-  Transfer
+  income
+  expense
+  transfer
 }
