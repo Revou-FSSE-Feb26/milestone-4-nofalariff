@@ -1,12 +1,16 @@
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTransactionDto } from '../dto/create-transaction.dto';
 import { UpdateTransactionDto } from '../dto/update-transaction.dto';
-import { TransactionType } from 'generated/prisma/client';
+import { TransactionType, Prisma } from 'generated/prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 // fungsi untuk menambak atau mengurangi saldo Amount
-function signedAmount(type: TransactionType, amount: number): number {
-  return type === 'income' ? amount : -amount;
+function signedAmount(
+  type: TransactionType,
+  amount: Prisma.Decimal | number,
+): Prisma.Decimal {
+  const value = new Prisma.Decimal(amount);
+  return type === 'income' ? value : value.negated();
 }
 
 @Injectable()
