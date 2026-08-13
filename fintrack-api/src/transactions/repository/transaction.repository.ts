@@ -1,16 +1,14 @@
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTransactionDto } from '../dto/create-transaction.dto';
 import { UpdateTransactionDto } from '../dto/update-transaction.dto';
-import { TransactionType, Prisma } from 'generated/prisma/client';
+import { Prisma } from 'generated/prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-// fungsi untuk menambak atau mengurangi saldo Amount
-function signedAmount(
-  type: TransactionType,
-  amount: Prisma.Decimal | number,
-): Prisma.Decimal {
-  const value = new Prisma.Decimal(amount);
-  return type === 'income' ? value : value.negated();
+interface BalanceReassignment {
+  oldAccountId: number;
+  newAccountId: number;
+  revertOldDelta: Prisma.Decimal;
+  applyNewDelta: Prisma.Decimal;
 }
 
 @Injectable()
@@ -33,58 +31,53 @@ export class TransactionRepository {
     return transaction;
   }
 
-  createTransaction(dto: CreateTransactionDto) {
+  createTransaction(dto: CreateTransactionDto, balanceDelta: Prisma.Decimal) {
     return this.prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.create({
         data: dto,
       });
       await tx.account.update({
         where: { id: dto.account_id },
-        data: { balance: { increment: signedAmount(dto.type, dto.amount) } },
+        data: { balance: { increment: balanceDelta } },
       });
       return transaction;
     });
   }
 
-  async updateTransaction(id: number, dto: UpdateTransactionDto) {
-    const existing = await this.getTransactionById(id); // variable untuk data yang sudah ada
-
-    /* Variable untuk membuat update baru menggunakan operator ?? "Nullish Coalescing Operator" artinya 
-      gunakan nilai di kiri jika ada, kalau tidak gunakan nilai kanan.
-    */
-
-    const newAccountId = dto.account_id ?? existing.account_id;
-    const newType = dto.type ?? existing.type;
-    const newAmount = dto.amount ?? existing.amount;
-
+  updateTransaction(
+    id: number,
+    dto: UpdateTransactionDto,
+    {
+      oldAccountId,
+      newAccountId,
+      revertOldDelta,
+      applyNewDelta,
+    }: BalanceReassignment,
+  ) {
     return this.prisma.$transaction(async (tx) => {
-      // membatalkan transaksi lama ke akun lama
+      // membatalkan efek transaksi lama ke akun lama
       await tx.account.update({
-        where: { id: existing.account_id },
-        data: {
-          balance: {
-            decrement: signedAmount(existing.type, existing.amount),
-          },
-        },
+        where: { id: oldAccountId },
+        data: { balance: { increment: revertOldDelta } },
       });
       // terapkan efek transaksi baru ke akun (baru atau sama)
       await tx.account.update({
         where: { id: newAccountId },
-        data: { balance: { increment: signedAmount(newType, newAmount) } },
+        data: { balance: { increment: applyNewDelta } },
       });
       return tx.transaction.update({ where: { id }, data: dto });
     });
   }
 
-  async deleteTransaction(id: number) {
-    const existing = await this.getTransactionById(id);
-
+  deleteTransaction(
+    id: number,
+    accountId: number,
+    revertDelta: Prisma.Decimal,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       await tx.account.update({
-        where: { id: existing.account_id },
-        data: {
-          balance: { decrement: signedAmount(existing.type, existing.amount) },
-        },
+        where: { id: accountId },
+        data: { balance: { increment: revertDelta } },
       });
       return tx.transaction.delete({
         where: { id },
