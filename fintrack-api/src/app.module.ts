@@ -31,7 +31,7 @@ import { MaintenanceMiddleware } from './common/middleware/maintenance.middlewar
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
-      .apply(MaintenanceMiddleware, LoggerMiddleware, AuthHeaderMiddleware)
+      .apply(LoggerMiddleware, AuthHeaderMiddleware)
       .forRoutes({ path: '*', method: RequestMethod.ALL });
   }
 }
