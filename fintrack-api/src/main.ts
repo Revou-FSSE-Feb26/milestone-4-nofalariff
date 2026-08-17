@@ -3,9 +3,13 @@ import { AppModule } from './app.module';
 import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(helmet());
+  app.enableCors();
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -18,11 +22,14 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Fintrack API')
     .setDescription(
-      'REST API untuk mengelola user, akun (account), kategori, dan transaksi keuangan pribadi.',
+      'REST API untuk mengelola user, akun (account), kategori, dan transaksi keuangan pribadi. ' +
+        'Sebagian besar route butuh header `x-api` DAN JWT Bearer token (dari /auth/login atau /auth/register).',
     )
     .setVersion('1.0')
     .addApiKey({ type: 'apiKey', name: 'x-api', in: 'header' }, 'x-api')
-    .addSecurityRequirements('x-api') // semua route wajib header x-api (lihat AuthHeaderMiddleware)
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'jwt')
+    .addSecurityRequirements('x-api')
+    .addSecurityRequirements('jwt')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument);

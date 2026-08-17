@@ -1,22 +1,19 @@
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTransactionDto } from '../dto/create-transaction.dto';
 import { UpdateTransactionDto } from '../dto/update-transaction.dto';
-import { Prisma } from 'generated/prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
-
-interface BalanceReassignment {
-  oldAccountId: number;
-  newAccountId: number;
-  revertOldDelta: Prisma.Decimal;
-  applyNewDelta: Prisma.Decimal;
-}
+import { Prisma } from 'generated/prisma/client';
+import { BalanceEffect } from '../balance-calculator.service';
 
 @Injectable()
 export class TransactionRepository {
   constructor(private prisma: PrismaService) {}
 
-  getAllTransactions() {
-    return this.prisma.transaction.findMany();
+  // ownerId null berarti Admin (tidak difilter, lihat semua transaksi)
+  getAllTransactions(ownerId: number | null) {
+    return this.prisma.transaction.findMany({
+      where: ownerId === null ? undefined : { account: { user_id: ownerId } },
+    });
   }
 
   async getTransactionById(id: number) {
@@ -31,15 +28,38 @@ export class TransactionRepository {
     return transaction;
   }
 
-  createTransaction(dto: CreateTransactionDto, balanceDelta: Prisma.Decimal) {
+  // dipakai untuk ownership check sebelum baca/tulis akun sumber/tujuan
+  async getAccountOwnerId(accountId: number) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      select: { user_id: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException(`Account with Id ${accountId} not found`);
+    }
+
+    return account.user_id;
+  }
+
+  private applyEffects(
+    tx: Prisma.TransactionClient,
+    effects: BalanceEffect[],
+  ) {
+    return Promise.all(
+      effects.map((effect) =>
+        tx.account.update({
+          where: { id: effect.accountId },
+          data: { balance: { increment: effect.delta } },
+        }),
+      ),
+    );
+  }
+
+  createTransaction(dto: CreateTransactionDto, effects: BalanceEffect[]) {
     return this.prisma.$transaction(async (tx) => {
-      const transaction = await tx.transaction.create({
-        data: dto,
-      });
-      await tx.account.update({
-        where: { id: dto.account_id },
-        data: { balance: { increment: balanceDelta } },
-      });
+      const transaction = await tx.transaction.create({ data: dto });
+      await this.applyEffects(tx, effects);
       return transaction;
     });
   }
@@ -47,41 +67,21 @@ export class TransactionRepository {
   updateTransaction(
     id: number,
     dto: UpdateTransactionDto,
-    {
-      oldAccountId,
-      newAccountId,
-      revertOldDelta,
-      applyNewDelta,
-    }: BalanceReassignment,
+    revertOldEffects: BalanceEffect[],
+    applyNewEffects: BalanceEffect[],
   ) {
     return this.prisma.$transaction(async (tx) => {
-      // membatalkan efek transaksi lama ke akun lama
-      await tx.account.update({
-        where: { id: oldAccountId },
-        data: { balance: { increment: revertOldDelta } },
-      });
-      // terapkan efek transaksi baru ke akun (baru atau sama)
-      await tx.account.update({
-        where: { id: newAccountId },
-        data: { balance: { increment: applyNewDelta } },
-      });
+      // membatalkan efek transaksi lama, lalu terapkan efek transaksi baru
+      await this.applyEffects(tx, revertOldEffects);
+      await this.applyEffects(tx, applyNewEffects);
       return tx.transaction.update({ where: { id }, data: dto });
     });
   }
 
-  deleteTransaction(
-    id: number,
-    accountId: number,
-    revertDelta: Prisma.Decimal,
-  ) {
+  deleteTransaction(id: number, revertEffects: BalanceEffect[]) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.account.update({
-        where: { id: accountId },
-        data: { balance: { increment: revertDelta } },
-      });
-      return tx.transaction.delete({
-        where: { id },
-      });
+      await this.applyEffects(tx, revertEffects);
+      return tx.transaction.delete({ where: { id } });
     });
   }
 

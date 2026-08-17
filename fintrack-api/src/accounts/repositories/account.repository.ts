@@ -7,8 +7,11 @@ import { UpdateAccountDto } from '../dto/update-account.dto';
 export class AccountRepository {
   constructor(private prisma: PrismaService) {}
 
-  getAllAccounts() {
-    return this.prisma.account.findMany();
+  // ownerId null berarti Admin (tidak difilter, lihat semua akun)
+  getAllAccounts(ownerId: number | null) {
+    return this.prisma.account.findMany({
+      where: ownerId === null ? undefined : { user_id: ownerId },
+    });
   }
 
   async getAccountById(id: number) {

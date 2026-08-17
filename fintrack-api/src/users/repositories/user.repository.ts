@@ -6,14 +6,16 @@ import { UpdateUserDto } from '../dto/update-user.dto';
 @Injectable()
 export class UserRepository {
   constructor(private prisma: PrismaService) {}
+
   getAllUsers() {
-    return this.prisma.user.findMany();
+    return this.prisma.user.findMany({ omit: { password: true } });
   }
 
   // menggunakan async/await untuk menunggu hasil dari query database
   async getUserById(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      omit: { password: true },
     }); // memastikan user yang dicari ada di database, jika tidak ada maka akan mengembalikan NotFoundException
 
     if (!user) {
@@ -26,6 +28,7 @@ export class UserRepository {
   createUser(dto: CreateUserDto) {
     return this.prisma.user.create({
       data: dto,
+      omit: { password: true },
     });
   }
 
@@ -35,6 +38,7 @@ export class UserRepository {
     return this.prisma.user.update({
       where: { id },
       data: dto,
+      omit: { password: true },
     });
   }
 
@@ -43,6 +47,7 @@ export class UserRepository {
 
     return this.prisma.user.delete({
       where: { id },
+      omit: { password: true },
     });
   }
 }

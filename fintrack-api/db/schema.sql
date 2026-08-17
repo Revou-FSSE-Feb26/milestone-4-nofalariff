@@ -38,7 +38,13 @@ CREATE TABLE transactions (
   amount           NUMERIC(12,2) NOT NULL,
   description      TEXT          NOT NULL,
   transaction_date DATE          NOT NULL,
-  created_at       TIMESTAMP     NOT NULL DEFAULT NOW()
+  created_at       TIMESTAMP     NOT NULL DEFAULT NOW(),
+  -- hanya diisi ketika type = 'transfer'; akun tujuan dana berpindah
+  to_account_id    INTEGER       REFERENCES accounts(id) ON DELETE RESTRICT,
+  CHECK (
+    (type = 'transfer' AND to_account_id IS NOT NULL)
+    OR (type <> 'transfer' AND to_account_id IS NULL)
+  )
 );
 
 -- Index tambahan untuk mempercepat query yang sering dipakai (filter & join)

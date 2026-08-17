@@ -30,14 +30,15 @@ enum Role {
 }
 
 model Account {
-  id           Int           @id @default(autoincrement())
-  name         String
-  type         AccountType
-  balance      Decimal       @db.Decimal(12, 2)
-  created_at   DateTime      @default(now())
-  user_id      Int
-  user         User          @relation(fields: [user_id], references: [id])
-  transactions Transaction[]
+  id                Int           @id @default(autoincrement())
+  name              String
+  type              AccountType
+  balance           Decimal       @db.Decimal(12, 2)
+  created_at        DateTime      @default(now())
+  user_id           Int
+  user              User          @relation(fields: [user_id], references: [id])
+  transactions      Transaction[] @relation("SourceAccount")
+  incomingTransfers Transaction[] @relation("DestinationAccount")
 }
 
 enum AccountType {
@@ -66,9 +67,12 @@ model Transaction {
   transaction_date DateTime        @default(now())
   created_at       DateTime        @default(now())
   account_id       Int
-  account          Account         @relation(fields: [account_id], references: [id])
+  account          Account         @relation("SourceAccount", fields: [account_id], references: [id])
   category_id      Int
   category         Category        @relation(fields: [category_id], references: [id])
+  // hanya diisi ketika type = transfer; akun tujuan dana berpindah
+  to_account_id    Int?
+  toAccount        Account?        @relation("DestinationAccount", fields: [to_account_id], references: [id])
 }
 
 enum TransactionType {

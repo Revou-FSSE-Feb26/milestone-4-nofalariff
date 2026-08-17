@@ -5,13 +5,14 @@ import {
   IsPositive,
   IsString,
   IsNotEmpty,
+  ValidateIf,
 } from 'class-validator';
 import { TransactionType } from 'generated/prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTransactionDto {
   @ApiProperty({
-    description: 'ID akun sumber/tujuan transaksi',
+    description: 'ID akun sumber transaksi',
     example: 1,
   })
   @IsInt()
@@ -26,7 +27,7 @@ export class CreateTransactionDto {
 
   @ApiProperty({
     description:
-      'Jenis transaksi. income menambah saldo akun, expense/transfer mengurangi saldo akun',
+      'Jenis transaksi. income menambah saldo akun, expense mengurangi saldo akun, transfer memindahkan saldo dari account_id ke to_account_id',
     enum: TransactionType,
     example: TransactionType.income,
   })
@@ -48,4 +49,12 @@ export class CreateTransactionDto {
   @IsString()
   @IsNotEmpty()
   description: string;
+
+  @ApiPropertyOptional({
+    description: 'ID akun tujuan, wajib diisi jika type = transfer',
+    example: 2,
+  })
+  @ValidateIf((dto: CreateTransactionDto) => dto.type === 'transfer')
+  @IsInt()
+  to_account_id?: number;
 }

@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { UserRepository } from './repositories/user.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CurrentUserPayload } from 'src/common/decorators/current-user.decorator';
+import { assertOwnerOrAdmin } from 'src/common/authorization/assert-owner';
+
+const SALT_ROUNDS = 10;
 
 @Injectable()
 export class UsersService {
@@ -11,19 +16,33 @@ export class UsersService {
     return this.userRepository.getAllUsers();
   }
 
-  getUserById(id: number) {
+  async getUserById(id: number, currentUser: CurrentUserPayload) {
+    assertOwnerOrAdmin(currentUser, id);
     return this.userRepository.getUserById(id);
   }
 
-  createUser(dto: CreateUserDto) {
-    return this.userRepository.createUser(dto);
+  async createUser(dto: CreateUserDto) {
+    const hashedPassword = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    return this.userRepository.createUser({
+      ...dto,
+      password: hashedPassword,
+    });
   }
 
-  updateUser(id: number, dto: UpdateUserDto) {
-    return this.userRepository.updateUser(id, dto);
+  async updateUser(
+    id: number,
+    dto: UpdateUserDto,
+    currentUser: CurrentUserPayload,
+  ) {
+    assertOwnerOrAdmin(currentUser, id);
+    const updateData = dto.password
+      ? { ...dto, password: await bcrypt.hash(dto.password, SALT_ROUNDS) }
+      : dto;
+    return this.userRepository.updateUser(id, updateData);
   }
 
-  deleteUser(id: number) {
+  async deleteUser(id: number, currentUser: CurrentUserPayload) {
+    assertOwnerOrAdmin(currentUser, id);
     return this.userRepository.deleteUser(id);
   }
 }

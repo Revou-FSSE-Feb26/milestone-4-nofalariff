@@ -1,29 +1,48 @@
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { AccountRepository } from './repositories/account.repository';
-import { Injectable } from '@nestjs/common';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
+import { CurrentUserPayload } from 'src/common/decorators/current-user.decorator';
+import { assertOwnerOrAdmin } from 'src/common/authorization/assert-owner';
+import { Role } from 'generated/prisma/client';
 
 @Injectable()
 export class AccountsService {
   constructor(private readonly accountRepository: AccountRepository) {}
 
-  getAllAccounts() {
-    return this.accountRepository.getAllAccounts();
+  getAllAccounts(currentUser: CurrentUserPayload) {
+    const ownerId = currentUser.role === Role.Admin ? null : currentUser.id;
+    return this.accountRepository.getAllAccounts(ownerId);
   }
 
-  getAccountById(id: number) {
-    return this.accountRepository.getAccountById(id);
+  async getAccountById(id: number, currentUser: CurrentUserPayload) {
+    const account = await this.accountRepository.getAccountById(id);
+    assertOwnerOrAdmin(currentUser, account.user_id);
+    return account;
   }
 
-  createAccount(dto: CreateAccountDto) {
+  createAccount(dto: CreateAccountDto, currentUser: CurrentUserPayload) {
+    if (currentUser.role !== Role.Admin && dto.user_id !== currentUser.id) {
+      throw new ForbiddenException(
+        'Tidak boleh membuat akun untuk user lain',
+      );
+    }
     return this.accountRepository.createAccount(dto);
   }
 
-  updateAccount(id: number, dto: UpdateAccountDto) {
+  async updateAccount(
+    id: number,
+    dto: UpdateAccountDto,
+    currentUser: CurrentUserPayload,
+  ) {
+    const account = await this.accountRepository.getAccountById(id);
+    assertOwnerOrAdmin(currentUser, account.user_id);
     return this.accountRepository.updateAccount(id, dto);
   }
 
-  deleteAccount(id: number) {
+  async deleteAccount(id: number, currentUser: CurrentUserPayload) {
+    const account = await this.accountRepository.getAccountById(id);
+    assertOwnerOrAdmin(currentUser, account.user_id);
     return this.accountRepository.deleteAccount(id);
   }
 }
