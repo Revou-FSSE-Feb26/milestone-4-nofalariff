@@ -28,8 +28,8 @@ async function bootstrap() {
     .setVersion('1.0')
     .addApiKey({ type: 'apiKey', name: 'x-api', in: 'header' }, 'x-api')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'jwt')
-    .addSecurityRequirements('x-api')
-    .addSecurityRequirements('jwt')
+    // satu object = AND (x-api DAN jwt wajib bareng), bukan dua entry terpisah (yang berarti OR)
+    .addSecurityRequirements({ 'x-api': [], jwt: [] })
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument);

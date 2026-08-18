@@ -13,7 +13,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiResponse,
-  ApiBearerAuth,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -24,7 +24,8 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { CurrentUserPayload } from 'src/common/decorators/current-user.decorator';
 
 @ApiTags('Users')
-@ApiBearerAuth('jwt')
+// satu object = x-api DAN jwt wajib bareng (AND), bukan alternatif
+@ApiSecurity({ 'x-api': [], jwt: [] })
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

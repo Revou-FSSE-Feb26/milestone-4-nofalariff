@@ -13,7 +13,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiResponse,
-  ApiBearerAuth,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -22,7 +22,7 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { Role } from 'generated/prisma/client';
 
 @ApiTags('Categories')
-@ApiBearerAuth('jwt')
+@ApiSecurity({ 'x-api': [], jwt: [] })
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}

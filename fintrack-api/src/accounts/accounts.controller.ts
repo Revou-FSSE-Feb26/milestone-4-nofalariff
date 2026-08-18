@@ -13,7 +13,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiResponse,
-  ApiBearerAuth,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
@@ -23,7 +23,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { CurrentUserPayload } from 'src/common/decorators/current-user.decorator';
 
 @ApiTags('Accounts')
-@ApiBearerAuth('jwt')
+@ApiSecurity({ 'x-api': [], jwt: [] })
 @Controller('accounts')
 export class AccountsController {
   constructor(

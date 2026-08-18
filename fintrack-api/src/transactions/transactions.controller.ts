@@ -13,7 +13,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiResponse,
-  ApiBearerAuth,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -22,7 +22,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { CurrentUserPayload } from 'src/common/decorators/current-user.decorator';
 
 @ApiTags('Transactions')
-@ApiBearerAuth('jwt')
+@ApiSecurity({ 'x-api': [], jwt: [] })
 @Controller('transactions')
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
